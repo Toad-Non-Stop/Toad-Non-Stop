@@ -1,5 +1,6 @@
-#include <iostream>
-int main()
+#include <stdio.h>
+int main (void) 
 {
-	std::cout << "Hello World" << std::endl;
-}
+  puts("Hello World");
+  return 0;
+} 
