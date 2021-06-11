@@ -10,15 +10,18 @@
 #include <string.h>
 #include <time.h>
 
+//функция инициализации семафора
 void initSemValue(int semId, int n)
 {
-	struct sembuf op;
+	struct sembuf op; //создание переменной
+	//инициализация полей структуры
 	op.sem_op = 1;
 	op.sem_flg = 0;
 	op.sem_num = n;
-	semop(semId, &op, 1);
+	semop(semId, &op, 1); //инициализация семафора
 }
 
+//функция попытки ожидания семафора
 void tryToGetSemOrWait(int semId, int n)
 {
 	struct sembuf op;
@@ -28,6 +31,7 @@ void tryToGetSemOrWait(int semId, int n)
 	semop(semId, &op, 1);
 }
 
+//создание семафора
 void releaseSem(int semId, int n)
 {
 	initSemValue(semId, n);
@@ -35,19 +39,20 @@ void releaseSem(int semId, int n)
 
 int main(int argc, char* argv[])
 {
+	//получение значений аргументов
 	const int N = atoi(argv[1]);
 	const int min = atoi(argv[2]);
 	const int max = atoi(argv[3]);
 
-	int memId = shmget(IPC_PRIVATE, 4 * N, 0600 | IPC_CREAT | IPC_EXCL);
-	if (memId <= 0)
+	int memId = shmget(IPC_PRIVATE, 4 * N, 0600 | IPC_CREAT | IPC_EXCL); //получение идентификатора зарезервированного участка памяти
+	if (memId <= 0) //ошибка резервирования
 	{
 		printf("error with shmget()\n");
 		return -1;
 	}
 
-	int* memNumbers = (int *)shmat(memId, 0, 0);
-	if (NULL == memNumbers)
+	int* memNumbers = (int *)shmat(memId, 0, 0); //объявление массива в зарезервированном участке памяти
+	if (NULL == memNumbers) //ошибка создания массива
 	{
 		printf("error with shmat()\n");
 		return -2;
@@ -55,16 +60,16 @@ int main(int argc, char* argv[])
 
 	printf("Initial data: \n");
 	srand((unsigned)(time(0)));
-	for (int i = 0; i < N; i++)
+	for (int i = 0; i < N; i++) //заполнение массива данными
 	{
 		memNumbers[i] = min + rand() % (max - min + 1);
 		printf("%d ", memNumbers[i]);
 	}
 	printf("\n");
 
-	const size_t semCount = N;
-	int semId = semget(IPC_PRIVATE, semCount, 0600 | IPC_CREAT);
-	if (semId < 0)
+	const size_t semCount = N; //количество семафоров (получается из аргументов)
+	int semId = semget(IPC_PRIVATE, semCount, 0600 | IPC_CREAT); //создание семафоров
+	if (semId < 0) //ошибка создания семафоров
 	{
 		perror("error with semget()");
 		return -1;
@@ -74,26 +79,26 @@ int main(int argc, char* argv[])
 		printf("semaphore set id = %i\n", semId);
 	}
 
-	pid_t childId = fork();
+	pid_t childId = fork(); //создание процесса-потомка, аналогичного нынешнему процессу
 
-	if (childId < 0)
+	if (childId < 0) //ошибка создания процесса-потомка
 	{
 		perror("error with fork()\n");
 	}
 
-	else if (childId > 0)
+	else if (childId > 0) //процесс-родитель
 	{
 		for (int i = 0; i < N; ++i)
 		{
 			printf("Parent: Freeing semaphore %i\n", i);
-			releaseSem(semId, i);
+			releaseSem(semId, i); //инициализация семафора
 		}
 
 		int status = 0;
 		int m = 1;
 		while (waitpid(-1, &status, 0 | WNOHANG) == 0)
 		{
-		        printf("Step %i: ", m);
+			printf("Step %i: ", m);
 			for (int i = 0; i < N; i++)
 			{
 				tryToGetSemOrWait(semId, i);
